@@ -13,7 +13,7 @@ LABEL io.k8s.description="Platform for building a radanalytics java spark app" \
 
 USER root
 
-RUN yum install -y epel-release tar java && \
+RUN yum install -y tar java && \
     yum clean all
 
 RUN cd /opt && \
