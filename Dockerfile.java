@@ -2,8 +2,9 @@
 FROM fabric8/s2i-java
 
 MAINTAINER Trevor McKay tmckay@redhat.com
- 
-ENV RADANALYTICS_JAVA_SPARK 1.0
+
+ARG SPARK_VERSION=2.1.1
+ARG HADOOP_VERSION=2.7
 
 LABEL io.k8s.description="Platform for building a radanalytics java spark app" \
       io.k8s.display-name="radanalytics java_spark" \
@@ -13,23 +14,18 @@ LABEL io.k8s.description="Platform for building a radanalytics java spark app" \
 
 USER root
 
-RUN yum install -y tar java && \
+RUN yum install -y tar java golang make nss_wrapper git gcc && \
     yum clean all
 
 RUN cd /opt && \
-    curl https://dist.apache.org/repos/dist/release/spark/spark-2.1.0/spark-2.1.0-bin-hadoop2.7.tgz | \
+    curl https://dist.apache.org/repos/dist/release/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz | \
         tar -zx && \
-    ln -s spark-2.1.0-bin-hadoop2.7 spark
+    ln -s spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} spark
 
-RUN    yum install -y golang make nss_wrapper git gcc \
-    && yum clean all
-
-ENV GOPATH /go
+ENV RADANALYTICS_JAVA_SPARK=1.0 GOPATH=/go APP_ROOT=/opt/app-root PATH=$PATH:/opt/spark/bin SPARK_HOME=/opt/spark
 ADD . /go/src/github.com/radanalyticsio/oshinko-s2i
-ADD ./common/spark-conf/* /opt/spark/conf/
-ADD ./common/generate_container_user /opt/app-root/etc/
-
-ENV APP_ROOT /opt/app-root
+ADD ./common/spark-conf/* ${SPARK_HOME}/conf/
+ADD ./common/generate_container_user ${APP_ROOT}/etc/
 
 RUN mkdir -p $APP_ROOT/src && \
     cd /go/src/github.com/radanalyticsio/oshinko-s2i/java && \
@@ -41,9 +37,6 @@ RUN mkdir -p $APP_ROOT/src && \
     chown -R 1001:0 /opt/spark/conf && \
     chmod g+rw -R /opt/spark/conf && \
     rm -rf /go/src/github.com/radanalyticsio/oshinko-s2i/common/oshinko-cli
-
-ENV PATH=$PATH:/opt/spark/bin
-ENV SPARK_HOME=/opt/spark
 
 USER 1001
 CMD /usr/local/s2i/usage
